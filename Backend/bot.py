@@ -1,8 +1,14 @@
 from telegram import Update
 from telegram.ext import Application, CommandHandler, MessageHandler, ContextTypes, filters
 import requests
-from config import BOT_TOKEN, QUERY_API_URL
 from agent_manager import AgentManager
+from dotenv import load_dotenv
+import os
+
+load_dotenv()
+
+BOT_TOKEN = os.getenv("BOT_TOKEN")
+QUERY_API_URL = os.getenv("QUERY_API_URL")
 
 agent = AgentManager()
 

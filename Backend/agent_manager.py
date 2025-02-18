@@ -195,6 +195,37 @@ class AgentManager:
             traceback.print_exc()
             return {"brand": "", "model": "", "search_query": query}
 
+    async def _summarize_response(self, raw_response: str, intent: QueryIntent, query: str) -> str:
+        """Summarize and format the raw response data using GPT to make it more user-friendly"""
+        system_prompt = """You are a helpful pool equipment store assistant. 
+        Summarize the product information in a natural, conversational way.
+        Focus on the most relevant details based on the user's intent.
+        
+        Keep these guidelines in mind:
+        - Be concise but friendly
+        - Highlight the most relevant information first
+        - Include all important product details
+        - Maintain any links or images from the original response
+        - If prices are mentioned, keep them exactly as shown
+        """
+
+        prompt = ChatPromptTemplate.from_messages([
+            ("system", system_prompt),
+            ("human", f"""Original query: {query}
+            Query intent: {intent.value}
+            Raw response: {raw_response}
+            
+            Please provide a natural, conversational summary.""")
+        ])
+
+        try:
+            messages = prompt.format_messages()
+            response = self.llm.invoke(messages)
+            return response.content.strip()
+        except Exception as e:
+            print(f"❌ Error in response summarization: {str(e)}")
+            return raw_response  # Fall back to original response if summarization fails
+
     async def process_query(self, query: str) -> str:
         print(f"\n🔍 Processing query: '{query}'")
         try:
@@ -203,21 +234,21 @@ class AgentManager:
             print(f"📋 Initial Parameters: {params}")
             
             try:
-                result = await self._try_direct_query(intent, params, query)
-                return result
+                raw_result = await self._try_direct_query(intent, params, query)
+                # Summarize the response before returning
+                return await self._summarize_response(raw_result, intent, query)
             except QueryFailedError as e:
                 print(f"⚠️ Initial query failed: {str(e)}, falling back to GPT planning")
                 try:
-                    # Extract product info first
                     product_info = self._extract_product_info(query)
                     print(f"📦 Extracted Product Info: {product_info}")
                     
-                    # Use the extracted info for search
                     if product_info.get("search_query"):
-                        return await self._handle_product_search(product_info["search_query"])
+                        raw_result = await self._handle_product_search(product_info["search_query"])
+                        return await self._summarize_response(raw_result, QueryIntent.PRODUCT_SEARCH, query)
                     
-                    # If extraction fails, fall back to original query
-                    return await self._handle_product_search(query)
+                    raw_result = await self._handle_product_search(query)
+                    return await self._summarize_response(raw_result, QueryIntent.PRODUCT_SEARCH, query)
                 except Exception as extract_error:
                     print(f"❌ Error during extraction fallback: {str(extract_error)}")
                     import traceback
@@ -237,6 +268,25 @@ class AgentManager:
         # Clean and format the search query (remove spaces)
         formatted_query = "".join(query.split())
         print(f"🔎 Searching for products with query: {formatted_query}")
+        
+        # First try direct model number lookup
+        try:
+            model_response = requests.get(f"{self.base_url}/api/products/{formatted_query}")
+            if model_response.status_code == 200:
+                print("✅ Found exact model number match")
+                item = model_response.json()
+                result = "I found the exact product you're looking for:\n\n"
+                result += f"🔹 {item['product_name']}\n"
+                result += f"   Brand: {item['brand']}\n"
+                result += f"   Part Number: {item['part_number']}\n"
+                if item.get('description'):
+                    result += f"   Description: {item['description']}\n"
+                if item.get('image_url'):
+                    result += f"   [View Image]({item['image_url']})\n"
+                result += f"   [More Details](https://www.heritagepoolplus.com/{item['heritage_link']})\n\n"
+                return result
+        except Exception as e:
+            print(f"ℹ️ No exact model match found: {str(e)}")
         
         # First try Azure Cognitive Search with formatted query
         response = requests.get(
@@ -283,7 +333,7 @@ class AgentManager:
                 result += f"   Part Number: {item['part_number']}\n"
                 if item.get('image_url'):
                     result += f"   [View Image]({item['image_url']})\n"
-                result += f"   [More Details]({item['heritage_link']})\n\n"
+                result += f"   [More Details](https://www.heritagepoolplus.com/{item['heritage_link']})\n\n"
             else:  # Klevu search response
                 result += f"🔹 Part Number: {item['part_number']}\n"
                 result += f"   ID: {item['id']}\n\n"
@@ -356,7 +406,7 @@ class AgentManager:
         result += f"• Manufacturer ID: {data['manufacturer_id']}\n"
         if data.get('image_url'):
             result += f"• [View Image]({data['image_url']})\n"
-        result += f"• [More Details]({data['heritage_link']})"
+        result += f"• [More Details](https://www.heritagepoolplus.com/{data['heritage_link']})"    
         
         return result
 
