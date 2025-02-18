@@ -1,0 +1,50 @@
+# Python
+__pycache__/
+*.py[cod]
+*.so
+
+# Virtual Environment
+venv/
+.envrc
+.env
+.venv
+
+# Logs
+logs/
+*.log
+
+# Dependencies
+*.lock
+
+# IDE Settings
+.vscode/
+.idea/
+
+# Byte-compiled
+*.pyo
+*.pyd
+
+# FAISS Index
+faiss_index
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Node.js (for frontend builds if applicable)
+node_modules/
+build/
+dist/
+
+# FastAPI deployment
+*.db
+instance/
+
+# Ignore compiled Python files
+*.pyc
+
+.envrc
+
+chroma_persist_dir/
+
+.venv
