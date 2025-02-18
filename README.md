@@ -100,3 +100,11 @@ PRICING_TOKEN=your_pricing_api_token
 5. Open the telegram [chatbot](t.me/PoolingEquipmentbot)
 
 
+## Future Improvements
+
+1. Right now the chatbot does not have a back and fourth capabality to handle edge case user queries. Add a fail safe agent to detect edge case user input and then ask user to input response again. We can provide user with preprogrammed options in buttons by the intents.
+2. This is down in local development with long pooling in HTTP so we are sending requests to the Telegram api and client and awaits for response. This can be improved using deployed backend with a webhook URL to POST data and receive faster response time.
+3. I used a GPT to summarize the results from the search engine, this turns out to be slower than just hard coding the format.
+4. There could be a ranking system used to better make use of the searching engines, for example, I am using the default page and page items listing from the searched results. Most of the time the searched results are pretty accurate in the first 3-5 results. I was able to get the exact product from the returned json. But I can imagine where user does not have a specefic model in mind, so the chatbot should use the back and fourth capability mentioned in part one to improve the user's query.
+
+
